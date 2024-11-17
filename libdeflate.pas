@@ -1,17 +1,36 @@
 unit libdeflate;
 
+// https://github.com/ebiggers/libdeflate
+
 interface
+
+{$ALIGN ON}
+{$MINENUMSIZE 4}
 
 {.$define USE_LIBDEFLATE_DLL}
 
 (******************************************************************************)
-{$undef USE_CDECL}
 
-{$ifndef USE_LIBDEFLATE_DLL}
-  {$ifdef FPC}
+// Windows developers: note that the calling convention of libdeflate.dll is "cdecl"
+// (libdeflate v1.4 through v1.12 used "stdcall" instead)
+
+{$ifdef WIN32}
+  {$define USE_CDECL} // comment this line if you use old libdeflate build with "stdcall"
+
+  {$if defined(FPC) and not defined(USE_LIBDEFLATE_DLL)}
+    // always build static libs for FPC with "cdecl" fix!
     {$define USE_CDECL}
   {$endif}
 {$endif}
+
+{$if defined(USE_CDECL) and not defined(USE_LIBDEFLATE_DLL) and not defined(FPC)}
+const
+  _PU = '_';
+{$else}
+const
+  _PU = '';
+{$endif}
+
 (******************************************************************************)
 
 const
@@ -47,8 +66,8 @@ const
  *)
 function libdeflate_alloc_compressor(
   compression_level: Integer
-): libdeflate_compressor; {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif};
-external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
+): libdeflate_compressor; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_alloc_compressor';
 
 (*
  * libdeflate_deflate_compress() performs raw DEFLATE compression on a buffer of
@@ -63,8 +82,8 @@ function libdeflate_deflate_compress(
   in_nbytes: size_t;
   out_: Pointer;
   out_nbytes_avail: size_t
-): size_t; {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif};
-external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
+): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_deflate_compress';
 
 (*
  * libdeflate_deflate_compress_bound() returns a worst-case upper bound on the
@@ -94,8 +113,8 @@ external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
 function libdeflate_deflate_compress_bound(
   compressor: libdeflate_compressor;
 	in_nbytes: size_t
-): size_t; {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif};
-external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
+): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_deflate_compress_bound';
 
 (*
  * Like libdeflate_deflate_compress(), but stores the data in the zlib wrapper
@@ -107,8 +126,8 @@ function libdeflate_zlib_compress(
   in_nbytes: size_t;
   out_: Pointer;
   out_nbytes_avail: size_t
-): size_t; {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif};
-external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
+): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_zlib_compress';
 
 (*
  * Like libdeflate_deflate_compress_bound(), but assumes the data will be
@@ -118,8 +137,8 @@ external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
 function libdeflate_zlib_compress_bound(
   compressor: libdeflate_compressor;
 	in_nbytes: size_t
-): size_t; {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif};
-external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
+): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_zlib_compress_bound';
 
 (*
  * Like libdeflate_deflate_compress(), but stores the data in the gzip wrapper
@@ -131,8 +150,8 @@ function libdeflate_gzip_compress(
   in_nbytes: size_t;
   out_: Pointer;
   out_nbytes_avail: size_t
-): size_t; {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif};
-external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
+): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_gzip_compress';
 
 (*
  * Like libdeflate_deflate_compress_bound(), but assumes the data will be
@@ -142,8 +161,8 @@ external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
 function libdeflate_gzip_compress_bound(
   compressor: libdeflate_compressor;
 	in_nbytes: size_t
-): size_t; {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif};
-external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
+): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_gzip_compress_bound';
 
 (*
  * libdeflate_free_compressor() frees a compressor that was allocated with
@@ -152,8 +171,8 @@ external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
  *)
 procedure libdeflate_free_compressor(
   compressor: libdeflate_compressor
-); {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif};
-external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
+); {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_free_compressor';
 
 (* ========================================================================== *)
 
@@ -174,14 +193,13 @@ type
  * However, different threads may use different decompressors concurrently.
  *)
 function libdeflate_alloc_decompressor: libdeflate_decompressor;
-{$ifdef USE_CDECL} cdecl {$else} stdcall {$endif};
-external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
+{$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_alloc_decompressor';
 
 (*
  * Result of a call to libdeflate_deflate_decompress(),
  * libdeflate_zlib_decompress(), or libdeflate_gzip_decompress().
  *)
-{$MINENUMSIZE 4}
 type
   libdeflate_result = (
     (* Decompression was successful. *)
@@ -235,8 +253,8 @@ function libdeflate_deflate_decompress(
   out_: Pointer;
   out_nbytes_avail: size_t;
   actual_out_nbytes_ret: psize_t = nil
-): libdeflate_result; {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif};
-external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
+): libdeflate_result; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_deflate_decompress';
 
 (*
  * Like libdeflate_deflate_decompress(), but assumes the zlib wrapper format
@@ -249,8 +267,8 @@ function libdeflate_zlib_decompress(
   out_: Pointer;
   out_nbytes_avail: size_t;
   actual_out_nbytes_ret: psize_t = nil
-): libdeflate_result; {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif};
-external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
+): libdeflate_result; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_zlib_decompress';
 
 (*
  * Like libdeflate_deflate_decompress(), but assumes the gzip wrapper format
@@ -267,8 +285,8 @@ function libdeflate_gzip_decompress(
   out_: Pointer;
   out_nbytes_avail: size_t;
   actual_out_nbytes_ret: psize_t = nil
-): libdeflate_result; {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif};
-external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
+): libdeflate_result; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_gzip_decompress';
 
 (*
  * libdeflate_free_decompressor() frees a decompressor that was allocated with
@@ -277,8 +295,8 @@ external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
  *)
 procedure libdeflate_free_decompressor(
   decompressor: libdeflate_decompressor
-); {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif};
-external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif};
+); {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_free_decompressor';
 
 implementation
 
@@ -286,11 +304,9 @@ implementation
 
 {$ifdef FPC}
   {$ifdef WIN32}
-  const PU = '_';
-  {$linklib static/libdeflate-win32.a}
+    {$linklib static/libdeflate-win32.a}
   {$else}
-  const PU = '';
-  {$linklib static/libdeflate-win64.a}
+    {$linklib static/libdeflate-win64.a}
   {$endif}
 {$else}
   {$ifdef WIN32}
@@ -303,24 +319,38 @@ implementation
     {$L static/libdeflate-delphi/win32/crc32.obj}
     {$L static/libdeflate-delphi/win32/adler32.obj}
     {$L static/libdeflate-delphi/win32/utils.obj}
+    {$L static/libdeflate-delphi/win32/cpu_features.obj}
   {$else}
-    {$L static/libdeflate-delphi/win64/gzip_compress.obj}
-    {$L static/libdeflate-delphi/win64/zlib_compress.obj}
-    {$L static/libdeflate-delphi/win64/deflate_compress.obj}
-    {$L static/libdeflate-delphi/win64/gzip_decompress.obj}
-    {$L static/libdeflate-delphi/win64/zlib_decompress.obj}
-    {$L static/libdeflate-delphi/win64/deflate_decompress.obj}
-    {$L static/libdeflate-delphi/win64/crc32.obj}
-    {$L static/libdeflate-delphi/win64/adler32.obj}
-    {$L static/libdeflate-delphi/win64/utils.obj}
-    {$L static/libdeflate-delphi/win64/cpu_features.obj}
+    {$L static/libdeflate-delphi/win64/gzip_compress.o}
+    {$L static/libdeflate-delphi/win64/zlib_compress.o}
+    {$L static/libdeflate-delphi/win64/deflate_compress.o}
+    {$L static/libdeflate-delphi/win64/gzip_decompress.o}
+    {$L static/libdeflate-delphi/win64/zlib_decompress.o}
+    {$L static/libdeflate-delphi/win64/deflate_decompress.o}
+    {$L static/libdeflate-delphi/win64/crc32.o}
+    {$L static/libdeflate-delphi/win64/adler32.o}
+    {$L static/libdeflate-delphi/win64/utils.o}
+    {$L static/libdeflate-delphi/win64/cpu_features.o}
   {$endif}
 {$endif}
 
-{$ifdef WIN32}
-function _malloc(ASize: Cardinal): Pointer; cdecl;
+//{$ifndef FPC}
+//uses
+//  System.Win.Crtl;
+//{$endif}
+
+{$if defined(WIN32) and defined(FPC)}
+const
+  PU = '_';
 {$else}
-function malloc(ASize: Cardinal): Pointer;
+const
+  PU = '';
+{$endif}
+
+{$ifdef WIN32}
+function _malloc(ASize: size_t): Pointer; cdecl;
+{$else}
+function malloc(ASize: size_t): Pointer;
 {$endif}
 {$ifdef FPC} public name PU + 'malloc'; {$endif}
 begin
@@ -338,33 +368,55 @@ begin
 end;
 
 {$ifdef WIN32}
-procedure _memset(P: Pointer; B: Integer; ACount: Integer); cdecl;
+function _memset(P: Pointer; B: Integer; ACount: size_t): Pointer; cdecl;
 {$else}
-procedure memset(P: Pointer; B: Integer; ACount: Integer);
+function memset(P: Pointer; B: Integer; ACount: size_t): Pointer;
 {$endif}
 {$ifdef FPC} public name PU + 'memset'; {$endif}
 begin
   FillChar(P^, ACount, B);
+  Result := P;
 end;
 
 {$ifdef WIN32}
-procedure _memcpy(ADest, ASource: Pointer; ACount: Integer); cdecl;
+function _memcpy(ADest, ASource: Pointer; ACount: size_t): Pointer; cdecl;
 {$else}
-procedure memcpy(ADest, ASource: Pointer; ACount: Integer);
+function memcpy(ADest, ASource: Pointer; ACount: size_t): Pointer;
 {$endif}
 {$ifdef FPC} public name PU + 'memcpy'; {$endif}
 begin
-  Move(ASource^, ADest^, ACount);
+  System.Move(PByte(ASource)^, PByte(ADest)^, ACount);
+  Result := ADest;
 end;
 
 {$ifdef WIN32}
-procedure _memmove(ADest, ASource: Pointer; ACount: Integer); cdecl;
+function _memmove(ADest, ASource: Pointer; ACount: size_t): Pointer; cdecl;
 {$else}
-procedure memmove(ADest, ASource: Pointer; ACount: Integer);
+function memmove(ADest, ASource: Pointer; ACount: size_t): Pointer;
 {$endif}
 {$ifdef FPC} public name PU + 'memmove'; {$endif}
 begin
-  Move(ASource^, ADest^, ACount);
+  System.Move(PByte(ASource)^, PByte(ADest)^, ACount);
+  Result := ADest;
+end;
+
+{$ifdef WIN32}
+function _memcmp(ADest, ASource: Pointer; ACount: size_t): Integer; cdecl;
+{$else}
+function memcmp(ADest, ASource: Pointer; ACount: size_t): Integer;
+{$endif}
+{$ifdef FPC} public name PU + 'memcmp'; {$endif}
+begin
+  while ACount > 0 do begin
+    Result := PByte(ADest)^ - PByte(ASource)^;
+    if Result <> 0 then begin
+      Exit;
+    end;
+    Dec(ACount);
+    Inc(PByte(ADest));
+    Inc(PByte(ASource));
+  end;
+  Result := 0;
 end;
 
 {$endif} // USE_LIBDEFLATE_DLL

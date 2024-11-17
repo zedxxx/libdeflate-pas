@@ -16,3 +16,4 @@
 *.log
 .libdeflate/
 *.lps
+/static/libdeflate/

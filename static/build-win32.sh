@@ -1,11 +1,17 @@
 #!/usr/bin/bash -ex
 
+rev=v1.22
+
 GCC=i686-w64-mingw32-gcc
 
-cd ../.libdeflate
+if [ ! -d "libdeflate" ]; then
+    git clone https://github.com/ebiggers/libdeflate
+fi
+
+cd libdeflate
 
 git clean -d -x --force
-git reset --hard v1.8
+git reset --hard $rev
 
 sed -i "s/__stdcall/__cdecl/" libdeflate.h
 
@@ -20,8 +26,8 @@ $GCC -I.. -O2 -m32 -std=c99 -static \
     zlib_decompress.c zlib_compress.c \
     gzip_decompress.c gzip_compress.c
 
-strip -d -x "*.o"
+# strip -d -x "*.o"
 
 ar rcs libdeflate-win32.a cpu_features.o adler32.o crc32.o utils.o deflate_decompress.o deflate_compress.o zlib_decompress.o zlib_compress.o gzip_decompress.o gzip_compress.o
 
-mv libdeflate-win32.a ../../static/
+mv -f -v libdeflate-win32.a ../../
