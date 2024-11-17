@@ -27,6 +27,8 @@ uses
   libdeflate;
 
 const
+  CTestDataPath = '..\..\test\data\';
+
   CTestData: AnsiString = 'Test data for libdeflate';
 
   CTestDataZlib9: array[0..31] of Byte = (
@@ -109,8 +111,8 @@ begin
     VIn := TMemoryStream.Create;
     VOut := TMemoryStream.Create;
     try
-      VIn.LoadFromFile('..\test\data\zlib_decompress_bench_in');
-      VOut.LoadFromFile('..\test\data\zlib_decompress_bench_out');
+      VIn.LoadFromFile(CTestDataPath + 'zlib_decompress_bench_in');
+      VOut.LoadFromFile(CTestDataPath + 'zlib_decompress_bench_out');
 
       P := GetMemory(VOut.Size);
       try
