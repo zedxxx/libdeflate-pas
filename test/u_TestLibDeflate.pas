@@ -17,6 +17,7 @@ type
   published
     procedure TestCompression;
     procedure TestDecompression;
+    procedure TestOptions;
 
     procedure BenchDecompression;
   end;
@@ -94,6 +95,44 @@ begin
   finally
     libdeflate_free_decompressor(VZlib);
   end;
+end;
+
+var
+  GMemCounter: Integer;
+
+function MallocTest(ASize: size_t): Pointer; cdecl;
+begin
+  Inc(GMemCounter);
+  Result := GetMemory(ASize);
+end;
+
+procedure FreeTest(P: Pointer); cdecl;
+begin
+  Dec(GMemCounter);
+  FreeMemory(P);
+end;
+
+procedure TTestLibDeflate.TestOptions;
+var
+  P: Pointer;
+  VOptions: libdeflate_options_t;
+begin
+  FillChar(VOptions, SizeOf(VOptions), 0);
+
+  VOptions.sizeof_options := SizeOf(VOptions);
+  VOptions.malloc_func := @MallocTest;
+  VOptions.free_func := @FreeTest;
+
+  GMemCounter := 0;
+
+  P := libdeflate_alloc_decompressor_ex(@VOptions);
+  Check(P <> nil);
+  try
+    Check(GMemCounter = 1);
+  finally
+    libdeflate_free_decompressor(P);
+  end;
+  Check(GMemCounter = 0);
 end;
 
 procedure TTestLibDeflate.BenchDecompression;

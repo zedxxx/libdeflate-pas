@@ -8,6 +8,9 @@ uses
   libdeflate in '..\libdeflate.pas';
 
 begin
+  {$IFDEF DEBUG}
+  ReportMemoryLeaksOnShutdown := True;
+  {$ENDIF}
   Application.Initialize;
   RunRegisteredTests;
 end.
