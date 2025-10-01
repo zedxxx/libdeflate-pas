@@ -17,3 +17,5 @@
 .libdeflate/
 *.lps
 /static/libdeflate/
+/test/*.local
+/test/*.res
