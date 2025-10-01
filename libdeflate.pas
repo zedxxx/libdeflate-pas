@@ -15,13 +15,23 @@ interface
 // (libdeflate v1.4 through v1.12 used "stdcall" instead)
 
 {$ifdef WIN32}
-  {$define USE_CDECL} // comment this line if you use old libdeflate build with "stdcall"
+  {$define USE_CDECL} // Comment out this define if you are using an old 
+                      // libdeflate that uses the "stdcall" calling convention
 
   {$if defined(FPC) and not defined(USE_LIBDEFLATE_DLL)}
-    // always build static libs for FPC with "cdecl" fix!
+    // Always build static libs for FPC with the "cdecl" fix (for v1.4 through v1.12):
+    // sed -i "s/__stdcall/__cdecl/" libdeflate.h
     {$define USE_CDECL}
-  {$endif}
+  {$ifend}
 {$endif}
+
+{$if defined(USE_CDECL) and not defined(USE_LIBDEFLATE_DLL) and not defined(FPC) and (CompilerVersion < 19)}
+  // Delphi 2007 does not support specifying a custom function name without specifying
+  // the DLL name. Therefore, for static linking, the function names must match the names
+  // in the object files (.obj), which start with an underscore for the "cdecl" calling
+  // convention
+  {$define NO_EXTERNAL_NAME_SUPPORT}
+{$ifend}
 
 {$if defined(USE_CDECL) and not defined(USE_LIBDEFLATE_DLL) and not defined(FPC)}
 const
@@ -29,7 +39,7 @@ const
 {$else}
 const
   _PU = '';
-{$endif}
+{$ifend}
 
 (******************************************************************************)
 
@@ -64,10 +74,20 @@ const
  * A single compressor is not safe to use by multiple threads concurrently.
  * However, different threads may use different compressors concurrently.
  *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function libdeflate_alloc_compressor(
+  compression_level: Integer
+): libdeflate_compressor; inline;
+
+function _libdeflate_alloc_compressor(
+  compression_level: Integer
+): libdeflate_compressor; cdecl; external;
+{$else}
 function libdeflate_alloc_compressor(
   compression_level: Integer
 ): libdeflate_compressor; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_alloc_compressor';
+{$endif}
 
 (*
  * libdeflate_deflate_compress() performs raw DEFLATE compression on a buffer of
@@ -76,6 +96,15 @@ external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdefl
  * bytes.  The return value is the compressed size in bytes, or 0 if the data
  * could not be compressed to 'out_nbytes_avail' bytes or fewer.
  *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function _libdeflate_deflate_compress(
+  compressor: libdeflate_compressor;
+  const in_: Pointer;
+  in_nbytes: size_t;
+  out_: Pointer;
+  out_nbytes_avail: size_t
+): size_t; cdecl; external;
+{$else}
 function libdeflate_deflate_compress(
   compressor: libdeflate_compressor;
   const in_: Pointer;
@@ -84,6 +113,7 @@ function libdeflate_deflate_compress(
   out_nbytes_avail: size_t
 ): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_deflate_compress';
+{$endif}
 
 (*
  * libdeflate_deflate_compress_bound() returns a worst-case upper bound on the
@@ -110,16 +140,40 @@ external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdefl
  * libdeflate_deflate_compress() returns 0, indicating that the compressed data
  * did not fit into the provided output buffer.
  *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function _libdeflate_deflate_compress_bound(
+  compressor: libdeflate_compressor;
+	in_nbytes: size_t
+): size_t; cdecl; external;
+{$else}
 function libdeflate_deflate_compress_bound(
   compressor: libdeflate_compressor;
 	in_nbytes: size_t
 ): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_deflate_compress_bound';
+{$endif}
 
 (*
  * Like libdeflate_deflate_compress(), but stores the data in the zlib wrapper
  * format.
  *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function libdeflate_zlib_compress(
+  compressor: libdeflate_compressor;
+  const in_: Pointer;
+  in_nbytes: size_t;
+  out_: Pointer;
+  out_nbytes_avail: size_t
+): size_t; inline;
+
+function _libdeflate_zlib_compress(
+  compressor: libdeflate_compressor;
+  const in_: Pointer;
+  in_nbytes: size_t;
+  out_: Pointer;
+  out_nbytes_avail: size_t
+): size_t; cdecl; external;
+{$else}
 function libdeflate_zlib_compress(
   compressor: libdeflate_compressor;
   const in_: Pointer;
@@ -128,22 +182,44 @@ function libdeflate_zlib_compress(
   out_nbytes_avail: size_t
 ): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_zlib_compress';
+{$endif}
 
 (*
  * Like libdeflate_deflate_compress_bound(), but assumes the data will be
  * compressed with libdeflate_zlib_compress() rather than with
  * libdeflate_deflate_compress().
  *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function libdeflate_zlib_compress_bound(
+  compressor: libdeflate_compressor;
+	in_nbytes: size_t
+): size_t; inline;
+
+function _libdeflate_zlib_compress_bound(
+  compressor: libdeflate_compressor;
+	in_nbytes: size_t
+): size_t; cdecl; external;
+{$else}
 function libdeflate_zlib_compress_bound(
   compressor: libdeflate_compressor;
 	in_nbytes: size_t
 ): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_zlib_compress_bound';
+{$endif}
 
 (*
  * Like libdeflate_deflate_compress(), but stores the data in the gzip wrapper
  * format.
  *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function _libdeflate_gzip_compress(
+  compressor: libdeflate_compressor;
+  const in_: Pointer;
+  in_nbytes: size_t;
+  out_: Pointer;
+  out_nbytes_avail: size_t
+): size_t; cdecl; external;
+{$else}
 function libdeflate_gzip_compress(
   compressor: libdeflate_compressor;
   const in_: Pointer;
@@ -152,27 +228,45 @@ function libdeflate_gzip_compress(
   out_nbytes_avail: size_t
 ): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_gzip_compress';
+{$endif}
 
 (*
  * Like libdeflate_deflate_compress_bound(), but assumes the data will be
  * compressed with libdeflate_gzip_compress() rather than with
  * libdeflate_deflate_compress().
  *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function _libdeflate_gzip_compress_bound(
+  compressor: libdeflate_compressor;
+	in_nbytes: size_t
+): size_t; cdecl; external;
+{$else}
 function libdeflate_gzip_compress_bound(
   compressor: libdeflate_compressor;
 	in_nbytes: size_t
 ): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_gzip_compress_bound';
+{$endif}
 
 (*
  * libdeflate_free_compressor() frees a compressor that was allocated with
  * libdeflate_alloc_compressor().  If a NULL pointer is passed in, no action is
  * taken.
  *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+procedure libdeflate_free_compressor(
+  compressor: libdeflate_compressor
+); inline;
+
+procedure _libdeflate_free_compressor(
+  compressor: libdeflate_compressor
+); cdecl; external;
+{$else}
 procedure libdeflate_free_compressor(
   compressor: libdeflate_compressor
 ); {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_free_compressor';
+{$endif}
 
 (* ========================================================================== *)
 
@@ -192,9 +286,15 @@ type
  * A single decompressor is not safe to use by multiple threads concurrently.
  * However, different threads may use different decompressors concurrently.
  *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function libdeflate_alloc_decompressor: libdeflate_decompressor; inline;
+
+function _libdeflate_alloc_decompressor: libdeflate_decompressor; cdecl; external;
+{$else}
 function libdeflate_alloc_decompressor: libdeflate_decompressor;
 {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_alloc_decompressor';
+{$endif}
 
 (*
  * Result of a call to libdeflate_deflate_decompress(),
@@ -246,6 +346,16 @@ type
  *     not large enough but no other problems were encountered, or another
  *     nonzero result code if decompression failed for another reason.
  *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function _libdeflate_deflate_decompress(
+  decompressor: libdeflate_decompressor;
+  const in_: Pointer;
+  in_nbytes: size_t;
+  out_: Pointer;
+  out_nbytes_avail: size_t;
+  actual_out_nbytes_ret: psize_t = nil
+): libdeflate_result; cdecl; external;
+{$else}
 function libdeflate_deflate_decompress(
   decompressor: libdeflate_decompressor;
   const in_: Pointer;
@@ -255,11 +365,31 @@ function libdeflate_deflate_decompress(
   actual_out_nbytes_ret: psize_t = nil
 ): libdeflate_result; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_deflate_decompress';
+{$endif}
 
 (*
  * Like libdeflate_deflate_decompress(), but assumes the zlib wrapper format
  * instead of raw DEFLATE.
  *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function libdeflate_zlib_decompress(
+  decompressor: libdeflate_decompressor;
+  const in_: Pointer;
+  in_nbytes: size_t;
+  out_: Pointer;
+  out_nbytes_avail: size_t;
+  actual_out_nbytes_ret: psize_t = nil
+): libdeflate_result; inline;
+
+function _libdeflate_zlib_decompress(
+  decompressor: libdeflate_decompressor;
+  const in_: Pointer;
+  in_nbytes: size_t;
+  out_: Pointer;
+  out_nbytes_avail: size_t;
+  actual_out_nbytes_ret: psize_t = nil
+): libdeflate_result; cdecl; external;
+{$else}
 function libdeflate_zlib_decompress(
   decompressor: libdeflate_decompressor;
   const in_: Pointer;
@@ -269,6 +399,7 @@ function libdeflate_zlib_decompress(
   actual_out_nbytes_ret: psize_t = nil
 ): libdeflate_result; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_zlib_decompress';
+{$endif}
 
 (*
  * Like libdeflate_deflate_decompress(), but assumes the gzip wrapper format
@@ -278,6 +409,16 @@ external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdefl
  * will be decompressed.  Use libdeflate_gzip_decompress_ex() if you need
  * multi-member support.
  *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function _libdeflate_gzip_decompress(
+  decompressor: libdeflate_decompressor;
+  const in_: Pointer;
+  in_nbytes: size_t;
+  out_: Pointer;
+  out_nbytes_avail: size_t;
+  actual_out_nbytes_ret: psize_t = nil
+): libdeflate_result; cdecl; external;
+{$else}
 function libdeflate_gzip_decompress(
   decompressor: libdeflate_decompressor;
   const in_: Pointer;
@@ -287,16 +428,27 @@ function libdeflate_gzip_decompress(
   actual_out_nbytes_ret: psize_t = nil
 ): libdeflate_result; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_gzip_decompress';
+{$endif}
 
 (*
  * libdeflate_free_decompressor() frees a decompressor that was allocated with
  * libdeflate_alloc_decompressor().  If a NULL pointer is passed in, no action
  * is taken.
  *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+procedure libdeflate_free_decompressor(
+  decompressor: libdeflate_decompressor
+); inline;
+
+procedure _libdeflate_free_decompressor(
+  decompressor: libdeflate_decompressor
+); cdecl; external;
+{$else}
 procedure libdeflate_free_decompressor(
   decompressor: libdeflate_decompressor
 ); {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_free_decompressor';
+{$endif}
 
 implementation
 
@@ -334,18 +486,13 @@ implementation
   {$endif}
 {$endif}
 
-//{$ifndef FPC}
-//uses
-//  System.Win.Crtl;
-//{$endif}
-
 {$if defined(WIN32) and defined(FPC)}
 const
   PU = '_';
 {$else}
 const
   PU = '';
-{$endif}
+{$ifend}
 
 {$ifdef WIN32}
 function _malloc(ASize: size_t): Pointer; cdecl;
@@ -418,6 +565,65 @@ begin
   end;
   Result := 0;
 end;
+
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function libdeflate_alloc_compressor(
+  compression_level: Integer
+): libdeflate_compressor;
+begin
+  Result := _libdeflate_alloc_compressor(compression_level);
+end;
+
+function libdeflate_zlib_compress(
+  compressor: libdeflate_compressor;
+  const in_: Pointer;
+  in_nbytes: size_t;
+  out_: Pointer;
+  out_nbytes_avail: size_t
+): size_t;
+begin
+  Result := _libdeflate_zlib_compress(compressor, in_, in_nbytes, out_, out_nbytes_avail);
+end;
+
+function libdeflate_zlib_compress_bound(
+  compressor: libdeflate_compressor;
+	in_nbytes: size_t
+): size_t;
+begin
+  Result := _libdeflate_zlib_compress_bound(compressor, in_nbytes);
+end;
+
+procedure libdeflate_free_compressor(
+  compressor: libdeflate_compressor
+);
+begin
+  _libdeflate_free_compressor(compressor);
+end;
+
+function libdeflate_alloc_decompressor: libdeflate_decompressor;
+begin
+  Result := _libdeflate_alloc_decompressor;
+end;
+
+function libdeflate_zlib_decompress(
+  decompressor: libdeflate_decompressor;
+  const in_: Pointer;
+  in_nbytes: size_t;
+  out_: Pointer;
+  out_nbytes_avail: size_t;
+  actual_out_nbytes_ret: psize_t
+): libdeflate_result;
+begin
+  Result := _libdeflate_zlib_decompress(decompressor, in_, in_nbytes, out_, out_nbytes_avail, actual_out_nbytes_ret);
+end;
+
+procedure libdeflate_free_decompressor(
+  decompressor: libdeflate_decompressor
+);
+begin
+  _libdeflate_free_decompressor(decompressor);
+end;
+{$endif} // NO_EXTERNAL_NAME_SUPPORT
 
 {$endif} // USE_LIBDEFLATE_DLL
 
