@@ -64,8 +64,12 @@ const
  * libdeflate_alloc_compressor() allocates a new compressor that supports
  * DEFLATE, zlib, and gzip compression.  'compression_level' is the compression
  * level on a zlib-like scale but with a higher maximum value (1 = fastest, 6 =
- * medium/default, 9 = slow, 12 = slowest).  The return value is a pointer to
- * the new compressor, or NULL if out of memory.
+ * medium/default, 9 = slow, 12 = slowest).  Level 0 is also supported and means
+ * "no compression", specifically "create a valid stream, but only emit
+ * uncompressed blocks" (this will expand the data slightly).
+ *
+ * The return value is a pointer to the new compressor, or NULL if out of memory
+ * or if the compression level is invalid (i.e. outside the range [0, 12]).
  *
  * Note: for compression, the sliding window size is defined at compilation time
  * to 32768, the largest size permissible in the DEFLATE format. It cannot be
@@ -91,10 +95,19 @@ external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdefl
 
 (*
  * libdeflate_deflate_compress() performs raw DEFLATE compression on a buffer of
- * data.  The function attempts to compress 'in_nbytes' bytes of data located at
- * 'in' and write the results to 'out', which has space for 'out_nbytes_avail'
- * bytes.  The return value is the compressed size in bytes, or 0 if the data
- * could not be compressed to 'out_nbytes_avail' bytes or fewer.
+ * data.  It attempts to compress 'in_nbytes' bytes of data located at 'in' and
+ * write the result to 'out', which has space for 'out_nbytes_avail' bytes.  The
+ * return value is the compressed size in bytes, or 0 if the data could not be
+ * compressed to 'out_nbytes_avail' bytes or fewer.
+ *
+ * If compression is successful, then the output data is guaranteed to be a
+ * valid DEFLATE stream that decompresses to the input data.  No other
+ * guarantees are made about the output data.  Notably, different versions of
+ * libdeflate can produce different compressed data for the same uncompressed
+ * data, even at the same compression level.  Do ***NOT*** do things like
+ * writing tests that compare compressed data to a golden output, as this can
+ * break when libdeflate is updated.  (This property isn't specific to
+ * libdeflate; the same is true for zlib and other compression libraries too.)
  *)
 {$ifdef NO_EXTERNAL_NAME_SUPPORT}
 function _libdeflate_deflate_compress(
@@ -119,11 +132,10 @@ external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdefl
  * libdeflate_deflate_compress_bound() returns a worst-case upper bound on the
  * number of bytes of compressed data that may be produced by compressing any
  * buffer of length less than or equal to 'in_nbytes' using
- * libdeflate_deflate_compress() with the specified compressor.  Mathematically,
- * this bound will necessarily be a number greater than or equal to 'in_nbytes'.
- * It may be an overestimate of the true upper bound.  The return value is
- * guaranteed to be the same for all invocations with the same compressor and
- * same 'in_nbytes'.
+ * libdeflate_deflate_compress() with the specified compressor.  This bound will
+ * necessarily be a number greater than or equal to 'in_nbytes'.  It may be an
+ * overestimate of the true upper bound.  The return value is guaranteed to be
+ * the same for all invocations with the same compressor and same 'in_nbytes'.
  *
  * As a special case, 'compressor' may be NULL.  This causes the bound to be
  * taken across *any* libdeflate_compressor that could ever be allocated with
@@ -143,19 +155,19 @@ external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdefl
 {$ifdef NO_EXTERNAL_NAME_SUPPORT}
 function _libdeflate_deflate_compress_bound(
   compressor: libdeflate_compressor;
-	in_nbytes: size_t
+  in_nbytes: size_t
 ): size_t; cdecl; external;
 {$else}
 function libdeflate_deflate_compress_bound(
   compressor: libdeflate_compressor;
-	in_nbytes: size_t
+  in_nbytes: size_t
 ): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_deflate_compress_bound';
 {$endif}
 
 (*
- * Like libdeflate_deflate_compress(), but stores the data in the zlib wrapper
- * format.
+ * Like libdeflate_deflate_compress(), but uses the zlib wrapper format instead
+ * of raw DEFLATE.
  *)
 {$ifdef NO_EXTERNAL_NAME_SUPPORT}
 function libdeflate_zlib_compress(
@@ -192,24 +204,24 @@ external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdefl
 {$ifdef NO_EXTERNAL_NAME_SUPPORT}
 function libdeflate_zlib_compress_bound(
   compressor: libdeflate_compressor;
-	in_nbytes: size_t
+  in_nbytes: size_t
 ): size_t; inline;
 
 function _libdeflate_zlib_compress_bound(
   compressor: libdeflate_compressor;
-	in_nbytes: size_t
+  in_nbytes: size_t
 ): size_t; cdecl; external;
 {$else}
 function libdeflate_zlib_compress_bound(
   compressor: libdeflate_compressor;
-	in_nbytes: size_t
+  in_nbytes: size_t
 ): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_zlib_compress_bound';
 {$endif}
 
 (*
- * Like libdeflate_deflate_compress(), but stores the data in the gzip wrapper
- * format.
+ * Like libdeflate_deflate_compress(), but uses the gzip wrapper format instead
+ * of raw DEFLATE.
  *)
 {$ifdef NO_EXTERNAL_NAME_SUPPORT}
 function _libdeflate_gzip_compress(
@@ -238,12 +250,12 @@ external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdefl
 {$ifdef NO_EXTERNAL_NAME_SUPPORT}
 function _libdeflate_gzip_compress_bound(
   compressor: libdeflate_compressor;
-	in_nbytes: size_t
+  in_nbytes: size_t
 ): size_t; cdecl; external;
 {$else}
 function libdeflate_gzip_compress_bound(
   compressor: libdeflate_compressor;
-	in_nbytes: size_t
+  in_nbytes: size_t
 ): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_gzip_compress_bound';
 {$endif}
@@ -304,24 +316,27 @@ type
   libdeflate_result = (
     (* Decompression was successful. *)
     LIBDEFLATE_SUCCESS = 0,
-    (* Decompressed failed because the compressed data was invalid, corrupt,
-     * or otherwise unsupported.  *)
+    
+    (* Decompression failed because the compressed data was invalid,
+     * corrupt, or otherwise unsupported.  *)
     LIBDEFLATE_BAD_DATA = 1,
+    
     (* A NULL 'actual_out_nbytes_ret' was provided, but the data would have
      * decompressed to fewer than 'out_nbytes_avail' bytes.  *)
     LIBDEFLATE_SHORT_OUTPUT = 2,
+    
     (* The data would have decompressed to more than 'out_nbytes_avail'
      * bytes.  *)
     LIBDEFLATE_INSUFFICIENT_SPACE = 3
   );
+  
 (*
- * libdeflate_deflate_decompress() decompresses the DEFLATE-compressed stream
- * from the buffer 'in' with compressed size up to 'in_nbytes' bytes.  The
- * uncompressed data is written to 'out', a buffer with size 'out_nbytes_avail'
- * bytes.  If decompression succeeds, then 0 (LIBDEFLATE_SUCCESS) is returned.
- * Otherwise, a nonzero result code such as LIBDEFLATE_BAD_DATA is returned.  If
- * a nonzero result code is returned, then the contents of the output buffer are
- * undefined.
+ * libdeflate_deflate_decompress() decompresses a DEFLATE stream from the buffer
+ * 'in' with compressed size up to 'in_nbytes' bytes.  The uncompressed data is
+ * written to 'out', a buffer with size 'out_nbytes_avail' bytes.  If
+ * decompression succeeds, then 0 (LIBDEFLATE_SUCCESS) is returned.  Otherwise,
+ * a nonzero result code such as LIBDEFLATE_BAD_DATA is returned, and the
+ * contents of the output buffer are undefined.
  *
  * Decompression stops at the end of the DEFLATE stream (as indicated by the
  * BFINAL flag), even if it is actually shorter than 'in_nbytes' bytes.
@@ -370,6 +385,10 @@ external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdefl
 (*
  * Like libdeflate_deflate_decompress(), but assumes the zlib wrapper format
  * instead of raw DEFLATE.
+ *
+ * Decompression will stop at the end of the zlib stream, even if it is shorter
+ * than 'in_nbytes'.  If you need to know exactly where the zlib stream ended,
+ * use libdeflate_zlib_decompress_ex().
  *)
 {$ifdef NO_EXTERNAL_NAME_SUPPORT}
 function libdeflate_zlib_decompress(
@@ -587,7 +606,7 @@ end;
 
 function libdeflate_zlib_compress_bound(
   compressor: libdeflate_compressor;
-	in_nbytes: size_t
+  in_nbytes: size_t
 ): size_t;
 begin
   Result := _libdeflate_zlib_compress_bound(compressor, in_nbytes);
