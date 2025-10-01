@@ -9,6 +9,9 @@ interface
 
 {.$define USE_LIBDEFLATE_DLL}
 
+{$define HAS_EXT_FUNCTIONS}
+{$define HAS_CRC_FUNCTIONS}
+
 (******************************************************************************)
 
 // Windows developers: note that the calling convention of libdeflate.dll is "cdecl"
@@ -49,6 +52,12 @@ const
 type
   size_t = {$ifdef WIN32} Cardinal {$else} UInt64 {$endif};
   psize_t = ^size_t;
+  uint32_t = Cardinal;
+
+{$ifdef HAS_EXT_FUNCTIONS}
+type
+  libdeflate_options = Pointer; // pointer to libdeflate_options_t
+{$endif}
 
 (* ========================================================================== *)
 (*                             Compression                                    *)
@@ -91,7 +100,30 @@ function libdeflate_alloc_compressor(
   compression_level: Integer
 ): libdeflate_compressor; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_alloc_compressor';
-{$endif}
+{$endif NO_EXTERNAL_NAME_SUPPORT}
+
+{$ifdef HAS_EXT_FUNCTIONS}
+(*
+ * Like libdeflate_alloc_compressor(), but adds the 'options' argument.
+ *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function libdeflate_alloc_compressor_ex(
+  compression_level: Integer;
+  const options: libdeflate_options
+): libdeflate_compressor; inline;
+
+function _libdeflate_alloc_compressor_ex(
+  compression_level: Integer;
+  const options: libdeflate_options
+): libdeflate_compressor; cdecl; external;
+{$else}
+function libdeflate_alloc_compressor_ex(
+  compression_level: Integer;
+  const options: libdeflate_options
+): libdeflate_compressor; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_alloc_compressor_ex';
+{$endif NO_EXTERNAL_NAME_SUPPORT}
+{$endif HAS_EXT_FUNCTIONS}
 
 (*
  * libdeflate_deflate_compress() performs raw DEFLATE compression on a buffer of
@@ -126,7 +158,7 @@ function libdeflate_deflate_compress(
   out_nbytes_avail: size_t
 ): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_deflate_compress';
-{$endif}
+{$endif NO_EXTERNAL_NAME_SUPPORT}
 
 (*
  * libdeflate_deflate_compress_bound() returns a worst-case upper bound on the
@@ -163,7 +195,7 @@ function libdeflate_deflate_compress_bound(
   in_nbytes: size_t
 ): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_deflate_compress_bound';
-{$endif}
+{$endif NO_EXTERNAL_NAME_SUPPORT}
 
 (*
  * Like libdeflate_deflate_compress(), but uses the zlib wrapper format instead
@@ -194,7 +226,7 @@ function libdeflate_zlib_compress(
   out_nbytes_avail: size_t
 ): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_zlib_compress';
-{$endif}
+{$endif NO_EXTERNAL_NAME_SUPPORT}
 
 (*
  * Like libdeflate_deflate_compress_bound(), but assumes the data will be
@@ -217,7 +249,7 @@ function libdeflate_zlib_compress_bound(
   in_nbytes: size_t
 ): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_zlib_compress_bound';
-{$endif}
+{$endif NO_EXTERNAL_NAME_SUPPORT}
 
 (*
  * Like libdeflate_deflate_compress(), but uses the gzip wrapper format instead
@@ -240,7 +272,7 @@ function libdeflate_gzip_compress(
   out_nbytes_avail: size_t
 ): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_gzip_compress';
-{$endif}
+{$endif NO_EXTERNAL_NAME_SUPPORT}
 
 (*
  * Like libdeflate_deflate_compress_bound(), but assumes the data will be
@@ -258,7 +290,7 @@ function libdeflate_gzip_compress_bound(
   in_nbytes: size_t
 ): size_t; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_gzip_compress_bound';
-{$endif}
+{$endif NO_EXTERNAL_NAME_SUPPORT}
 
 (*
  * libdeflate_free_compressor() frees a compressor that was allocated with
@@ -278,14 +310,15 @@ procedure libdeflate_free_compressor(
   compressor: libdeflate_compressor
 ); {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_free_compressor';
-{$endif}
+{$endif NO_EXTERNAL_NAME_SUPPORT}
 
 (* ========================================================================== *)
-
 (*                             Decompression                                  *)
 (* ========================================================================== *)
+
 type
   libdeflate_decompressor = Pointer;
+
 (*
  * libdeflate_alloc_decompressor() allocates a new decompressor that can be used
  * for DEFLATE, zlib, and gzip decompression.  The return value is a pointer to
@@ -300,13 +333,26 @@ type
  *)
 {$ifdef NO_EXTERNAL_NAME_SUPPORT}
 function libdeflate_alloc_decompressor: libdeflate_decompressor; inline;
-
 function _libdeflate_alloc_decompressor: libdeflate_decompressor; cdecl; external;
 {$else}
 function libdeflate_alloc_decompressor: libdeflate_decompressor;
 {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_alloc_decompressor';
-{$endif}
+{$endif NO_EXTERNAL_NAME_SUPPORT}
+
+{$ifdef HAS_EXT_FUNCTIONS}
+(*
+ * Like libdeflate_alloc_decompressor(), but adds the 'options' argument.
+ *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function libdeflate_alloc_decompressor_ex(const options: libdeflate_options): libdeflate_decompressor; inline;
+function _libdeflate_alloc_decompressor_ex(const options: libdeflate_options): libdeflate_decompressor; cdecl; external;
+{$else}
+function libdeflate_alloc_decompressor_ex(const options: libdeflate_options): libdeflate_decompressor;
+{$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_alloc_decompressor_ex';
+{$endif NO_EXTERNAL_NAME_SUPPORT}
+{$endif HAS_EXT_FUNCTIONS}
 
 (*
  * Result of a call to libdeflate_deflate_decompress(),
@@ -380,7 +426,38 @@ function libdeflate_deflate_decompress(
   actual_out_nbytes_ret: psize_t = nil
 ): libdeflate_result; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_deflate_decompress';
-{$endif}
+{$endif NO_EXTERNAL_NAME_SUPPORT}
+
+{$ifdef HAS_EXT_FUNCTIONS}
+(*
+ * Like libdeflate_deflate_decompress(), but adds the 'actual_in_nbytes_ret'
+ * argument.  If decompression succeeds and 'actual_in_nbytes_ret' is not NULL,
+ * then the actual compressed size of the DEFLATE stream (aligned to the next
+ * byte boundary) is written to *actual_in_nbytes_ret.
+ *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function _libdeflate_deflate_decompress_ex(
+  decompressor: libdeflate_decompressor;
+  const in_: Pointer;
+  in_nbytes: size_t;
+  out_: Pointer;
+  out_nbytes_avail: size_t;
+  actual_in_nbytes_ret: psize_t;
+  actual_out_nbytes_ret: psize_t = nil
+): libdeflate_result; cdecl; external;
+{$else}
+function libdeflate_deflate_decompress_ex(
+  decompressor: libdeflate_decompressor;
+  const in_: Pointer;
+  in_nbytes: size_t;
+  out_: Pointer;
+  out_nbytes_avail: size_t;
+  actual_in_nbytes_ret: psize_t;
+  actual_out_nbytes_ret: psize_t = nil
+): libdeflate_result; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_deflate_decompress_ex';
+{$endif NO_EXTERNAL_NAME_SUPPORT}
+{$endif HAS_EXT_FUNCTIONS}
 
 (*
  * Like libdeflate_deflate_decompress(), but assumes the zlib wrapper format
@@ -418,7 +495,39 @@ function libdeflate_zlib_decompress(
   actual_out_nbytes_ret: psize_t = nil
 ): libdeflate_result; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_zlib_decompress';
-{$endif}
+{$endif NO_EXTERNAL_NAME_SUPPORT}
+
+{$ifdef HAS_EXT_FUNCTIONS}
+(*
+ * Like libdeflate_zlib_decompress(), but adds the 'actual_in_nbytes_ret'
+ * argument.  If 'actual_in_nbytes_ret' is not NULL and the decompression
+ * succeeds (indicating that the first zlib-compressed stream in the input
+ * buffer was decompressed), then the actual number of input bytes consumed is
+ * written to *actual_in_nbytes_ret.
+ *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function _libdeflate_zlib_decompress_ex(
+  decompressor: libdeflate_decompressor;
+  const in_: Pointer;
+  in_nbytes: size_t;
+  out_: Pointer;
+  out_nbytes_avail: size_t;
+  actual_in_nbytes_ret: psize_t;
+  actual_out_nbytes_ret: psize_t = nil
+): libdeflate_result; cdecl; external;
+{$else}
+function libdeflate_zlib_decompress_ex(
+  decompressor: libdeflate_decompressor;
+  const in_: Pointer;
+  in_nbytes: size_t;
+  out_: Pointer;
+  out_nbytes_avail: size_t;
+  actual_in_nbytes_ret: psize_t;
+  actual_out_nbytes_ret: psize_t = nil
+): libdeflate_result; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_zlib_decompress_ex';
+{$endif NO_EXTERNAL_NAME_SUPPORT}
+{$endif HAS_EXT_FUNCTIONS}
 
 (*
  * Like libdeflate_deflate_decompress(), but assumes the gzip wrapper format
@@ -447,7 +556,39 @@ function libdeflate_gzip_decompress(
   actual_out_nbytes_ret: psize_t = nil
 ): libdeflate_result; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_gzip_decompress';
-{$endif}
+{$endif NO_EXTERNAL_NAME_SUPPORT}
+
+{$ifdef HAS_EXT_FUNCTIONS}
+(*
+ * Like libdeflate_gzip_decompress(), but adds the 'actual_in_nbytes_ret'
+ * argument.  If 'actual_in_nbytes_ret' is not NULL and the decompression
+ * succeeds (indicating that the first gzip-compressed member in the input
+ * buffer was decompressed), then the actual number of input bytes consumed is
+ * written to *actual_in_nbytes_ret.
+ *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function _libdeflate_gzip_decompress_ex(
+  decompressor: libdeflate_decompressor;
+  const in_: Pointer;
+  in_nbytes: size_t;
+  out_: Pointer;
+  out_nbytes_avail: size_t;
+  actual_in_nbytes_ret: psize_t;
+  actual_out_nbytes_ret: psize_t = nil
+): libdeflate_result; cdecl; external;
+{$else}
+function libdeflate_gzip_decompress_ex(
+  decompressor: libdeflate_decompressor;
+  const in_: Pointer;
+  in_nbytes: size_t;
+  out_: Pointer;
+  out_nbytes_avail: size_t;
+  actual_in_nbytes_ret: psize_t;
+  actual_out_nbytes_ret: psize_t = nil
+): libdeflate_result; {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_gzip_decompress_ex';
+{$endif NO_EXTERNAL_NAME_SUPPORT}
+{$endif HAS_EXT_FUNCTIONS}
 
 (*
  * libdeflate_free_decompressor() frees a decompressor that was allocated with
@@ -467,7 +608,117 @@ procedure libdeflate_free_decompressor(
   decompressor: libdeflate_decompressor
 ); {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
 external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_free_decompressor';
-{$endif}
+{$endif NO_EXTERNAL_NAME_SUPPORT}
+
+{$ifdef HAS_CRC_FUNCTIONS}
+(* ========================================================================== *)
+(*                                Checksums                                   *)
+(* ========================================================================== *)
+
+(*
+ * libdeflate_adler32() updates a running Adler-32 checksum with 'len' bytes of
+ * data and returns the updated checksum.  When starting a new checksum, the
+ * required initial value for 'adler' is 1.  This value is also returned when
+ * 'buffer' is specified as NULL.
+ *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function _libdeflate_adler32(adler: uint32_t; const buffer: pointer; len: size_t): uint32_t; cdecl; external;
+{$else}
+function libdeflate_adler32(adler: uint32_t; const buffer: pointer; len: size_t): uint32_t;
+{$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_adler32';
+{$endif NO_EXTERNAL_NAME_SUPPORT}
+
+(*
+ * libdeflate_crc32() updates a running CRC-32 checksum with 'len' bytes of data
+ * and returns the updated checksum.  When starting a new checksum, the required
+ * initial value for 'crc' is 0.  This value is also returned when 'buffer' is
+ * specified as NULL.
+ *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+function _libdeflate_crc32(crc: uint32_t; const buffer: pointer; len: size_t): uint32_t; cdecl; external;
+{$else}
+function libdeflate_crc32(crc: uint32_t; const buffer: pointer; len: size_t): uint32_t;
+{$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_crc32';
+{$endif NO_EXTERNAL_NAME_SUPPORT}
+{$endif HAS_CRC_FUNCTIONS}
+
+{$ifdef HAS_EXT_FUNCTIONS}
+(* ========================================================================== *)
+(*                           Custom memory allocator                          *)
+(* ========================================================================== *)
+
+type
+  malloc_func_t = function(size: size_t): pointer; cdecl;
+  free_func_t = procedure(p: pointer); cdecl;
+
+(*
+ * Install a custom memory allocator which libdeflate will use for all memory
+ * allocations by default.  'malloc_func' is a function that must behave like
+ * malloc(), and 'free_func' is a function that must behave like free().
+ *
+ * The per-(de)compressor custom memory allocator that can be specified in
+ * 'struct libdeflate_options' takes priority over this.
+ *
+ * This doesn't affect the free() function that will be used to free
+ * (de)compressors that were already in existence when this is called.
+ *)
+{$ifdef NO_EXTERNAL_NAME_SUPPORT}
+procedure _libdeflate_set_memory_allocator(
+  malloc_func: malloc_func_t;
+  free_func: free_func_t
+); cdecl; external;
+{$else}
+procedure libdeflate_set_memory_allocator(
+  malloc_func: malloc_func_t;
+  free_func: free_func_t
+); {$ifdef WIN32} {$ifdef USE_CDECL} cdecl {$else} stdcall {$endif}; {$endif}
+external {$ifdef USE_LIBDEFLATE_DLL} libdeflate_dll {$endif} name _PU + 'libdeflate_set_memory_allocator';
+{$endif NO_EXTERNAL_NAME_SUPPORT}
+
+(*
+ * Advanced options.  This is the options structure that
+ * libdeflate_alloc_compressor_ex() and libdeflate_alloc_decompressor_ex()
+ * require.  Most users won't need this and should just use the non-"_ex"
+ * functions instead.  If you do need this, it should be initialized like this:
+ *
+ *  struct libdeflate_options options;
+ *
+ *  memset(&options, 0, sizeof(options));
+ *  options.sizeof_options = sizeof(options);
+ *  // Then set the fields that you need to override the defaults for.
+ *)
+type
+  libdeflate_options_t = record  // x32 = 12 bytes; x64 = 24 bytes
+
+    (*
+     * This field must be set to the struct size.  This field exists for
+     * extensibility, so that fields can be appended to this struct in
+     * future versions of libdeflate while still supporting old binaries.
+     *)
+    sizeof_options: size_t;
+
+    (*
+     * An optional custom memory allocator to use for this (de)compressor.
+     * 'malloc_func' must be a function that behaves like malloc(), and
+     * 'free_func' must be a function that behaves like free().
+     *
+     * This is useful in cases where a process might have multiple users of
+     * libdeflate who want to use different memory allocators.  For example,
+     * a library might want to use libdeflate with a custom memory allocator
+     * without interfering with user code that might use libdeflate too.
+     *
+     * This takes priority over the "global" memory allocator (which by
+     * default is malloc() and free(), but can be changed by
+     * libdeflate_set_memory_allocator()).  Moreover, libdeflate will never
+     * call the "global" memory allocator if a per-(de)compressor custom
+     * allocator is always given.
+     *)
+    malloc_func: malloc_func_t;
+    free_func: free_func_t;
+  end;
+{$endif HAS_EXT_FUNCTIONS}
 
 implementation
 
@@ -593,6 +844,14 @@ begin
   Result := _libdeflate_alloc_compressor(compression_level);
 end;
 
+function libdeflate_alloc_compressor_ex(
+  compression_level: Integer;
+  const options: Pointer
+): libdeflate_compressor;
+begin
+  Result := _libdeflate_alloc_compressor_ex(compression_level, options);
+end;
+
 function libdeflate_zlib_compress(
   compressor: libdeflate_compressor;
   const in_: Pointer;
@@ -624,6 +883,11 @@ begin
   Result := _libdeflate_alloc_decompressor;
 end;
 
+function libdeflate_alloc_decompressor_ex(const options: libdeflate_options): libdeflate_decompressor;
+begin
+  Result := _libdeflate_alloc_decompressor_ex(options);
+end;
+
 function libdeflate_zlib_decompress(
   decompressor: libdeflate_decompressor;
   const in_: Pointer;
@@ -642,9 +906,9 @@ procedure libdeflate_free_decompressor(
 begin
   _libdeflate_free_decompressor(decompressor);
 end;
-{$endif} // NO_EXTERNAL_NAME_SUPPORT
+{$endif NO_EXTERNAL_NAME_SUPPORT}
 
-{$endif} // USE_LIBDEFLATE_DLL
+{$endif USE_LIBDEFLATE_DLL}
 
 end.
 
