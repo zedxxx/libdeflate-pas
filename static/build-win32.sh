@@ -1,6 +1,6 @@
 #!/usr/bin/bash -ex
 
-rev=v1.22
+rev=v1.24
 
 GCC=i686-w64-mingw32-gcc
 
@@ -11,6 +11,7 @@ fi
 cd libdeflate
 
 git clean -d -x --force
+git fetch
 git reset --hard $rev
 
 sed -i "s/__stdcall/__cdecl/" libdeflate.h

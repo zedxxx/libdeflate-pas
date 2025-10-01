@@ -1,9 +1,18 @@
 @echo off
 
+if not exist "libdeflate" (
+  git clone https://github.com/ebiggers/libdeflate
+)
+
+if not exist "libdeflate" (
+  exit
+)
+
 cd libdeflate
 
 git clean -d -x --force
-git reset --hard v1.22
+git fetch
+git reset --hard v1.24
 
 cd lib
 

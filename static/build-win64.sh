@@ -1,6 +1,6 @@
 #!/usr/bin/bash -ex
 
-rev=v1.22
+rev=v1.24
 
 GCC=x86_64-w64-mingw32-gcc
 
@@ -11,6 +11,7 @@ fi
 cd libdeflate
 
 git clean -d -x --force
+git fetch
 git reset --hard $rev
 
 cd lib
@@ -30,4 +31,4 @@ ar rcs libdeflate-win64.a cpu_features.o adler32.o crc32.o utils.o deflate_decom
 
 mv -f -v libdeflate-win64.a ../../
 
-mv -f -v *.o ../../libdeflate-delphi/win64/
+# mv -f -v *.o ../../libdeflate-delphi/win64/
